@@ -7,151 +7,154 @@ import os.path
 import sys
 import time
 import skimage.io as io
-
 import tensorflow as tf
-
 import numpy as np
-#from tensorflow.examples.tutorials.mnist import input_data as mnist_data
+import cv2
 
-#mnist = mnist_data.read_data_sets("data", one_hot=True, reshape=False, validation_size=0)
+#############################################################################################################################
+
+# Utils class to provide supporting operations. Has functions for
+# 1. Reading data from tf records and return batches 
+# 2. TODO : Add conv, relu, pool functionalities
+# 3. TODO : Move all mnist varibles, equations, and even run function to other script
 
 
-
-def read_and_decode(queue):
-	reader = tf.TFRecordReader()
-	_, serialized_example = reader.read(filename_queue)
-	features = tf.parse_single_example(
-      serialized_example,
-      # Defaults are not specified since both keys are required.
-      features={
-          'image_raw': tf.FixedLenFeature([], tf.string),
-          'label': tf.FixedLenFeature([], tf.string),
-          'height': tf.FixedLenFeature([], tf.int64),
-          'width': tf.FixedLenFeature([], tf.int64),
-          'depth': tf.FixedLenFeature([], tf.int64)
-      })
-	#image = np.fromstring(features['image_raw'], dtype=np.uint8)
-	image = tf.decode_raw(features['image_raw'],tf.float32)
-	label = tf.decode_raw(features['label'], tf.float32)
-
-	height = tf.cast(features['height'], tf.int32)
-	width = tf.cast(features['width'], tf.int32)
-	depth = tf.cast(features['depth'], tf.int32)
-
-	#image_shape = tf.pack([height, width, depth])
-	image2 = tf.reshape(image, [height, width, depth])
-	return image2,label
+###########################################################################################################################
 
 
 
+class Utils:
+	def mnist_init(self):
+		self.b = tf.Variable(tf.zeros([10]))
+		self.W = tf.Variable(tf.zeros([784,10]))
+
+		self.x = tf.placeholder(tf.float32,[None,28,28,1])
+		self.y = tf.placeholder(tf.float32,[None,10])
+		self.TRAIN_FILE = '/home/tarun/mine/tensorflow_examples/tensorflow-utils/train.tfrecords'
+		self.batchsize = 5
+		self.num_epochs = 5
+		self.num_images = 10000
 
 
-TRAIN_FILE = '/home/tarun/mine/tensorflow_examples/tensorflow-utils/train.tfrecords'
+	def read_and_decode(self,queue):
+		reader = tf.TFRecordReader()
+		_, serialized_example = reader.read(self.filename_queue)
+		features = tf.parse_single_example(
+	      serialized_example,
+	      # Defaults are not specified since both keys are required.
+	      features={
+	          'image_raw': tf.FixedLenFeature([], tf.string),
+	          'label': tf.FixedLenFeature([], tf.string),
+	          'height': tf.FixedLenFeature([], tf.int64),
+	          'width': tf.FixedLenFeature([], tf.int64),
+	          'depth': tf.FixedLenFeature([], tf.int64)
+	      })
+		#image = np.fromstring(features['image_raw'], dtype=np.uint8)
+		image = tf.decode_raw(features['image_raw'],tf.float32)
+		label3 = tf.decode_raw(features['label'], tf.float32)
+
+		height = tf.cast(features['height'], tf.int32)
+		width = tf.cast(features['width'], tf.int32)
+		depth = tf.cast(features['depth'], tf.int32)
+
+		#image_shape = tf.pack([height, width, depth])
+		image2 = tf.reshape(image, [height, width, depth])
+		return image2,label3
 
 
-num_epochs = 1
-filename_queue = tf.train.string_input_producer(
-        [TRAIN_FILE])
-
-    # Even when reading in multiple threads, share the filename
-    # queue.
-
-img,label = read_and_decode(filename_queue)
+	#img,label = read_and_decode(filename_queue)
 
 
-b = tf.Variable(tf.zeros([10]))
-W = tf.Variable(tf.zeros([784,10]))
-
-x = tf.placeholder(tf.float32,[None,28,28,1])
-y = tf.placeholder(tf.float32,[None,10])
-
-
-output = tf.nn.softmax(tf.matmul(tf.reshape(x,[-1,784]),W)+b)
-
-loss = -tf.reduce_sum(y*tf.log(output)) 
-
-#step = tf.train.GradientDescentOptimizer(0.01).minimize(loss)
-
-
-sess = tf.Session()
-init = tf.global_variables_initializer()
-sess.run(init)
-
-
-coord = tf.train.Coordinator()
-threads = tf.train.start_queue_runners(coord=coord,sess=sess)
-
-img,anno = sess.run([img,label])
-
-
-print (img.shape)
-
-#print(img[0, :, :, :].shape)
-#print (sess.run(label))
-
-# Wait for threads to finish.
-#coord.join(threads)
-#sess.close()
-
-
-sys.exit(0)
+	def model(self):
+		# define model and return loss...this along with mnist_init will be moved to another script
+		output = tf.nn.softmax(tf.matmul(tf.reshape(self.x,[-1,784]),self.W)+self.b)
+		loss = -tf.reduce_sum(self.y*tf.log(output))
+		return loss
 
 
 
+	def get_next_batch(self,batchsize,sess):
+		batchx = []
+		batchy = []
+		for i in range(batchsize):
+			img,anno = sess.run([self.img,self.label2])
+			print (anno)
+			sys.exit(0)
+			batchx.append(img)
+			batchy.append(anno)
+
+		return batchx,batchy
 
 
 
+	def run(self):
+		loss = self.model()
+		step = tf.train.GradientDescentOptimizer(0.01).minimize(loss)
+
+		self.filename_queue = tf.train.string_input_producer([self.TRAIN_FILE])
+		# variables for reading..used in get_next_batch()
+		self.img, self.label2 = self.read_and_decode(self.filename_queue)
 
 
+		sess = tf.Session()
+		init = tf.global_variables_initializer()
+		sess.run(init)
 
+		# for reading the tf record
+		coord = tf.train.Coordinator()
+		threads = tf.train.start_queue_runners(coord=coord,sess=sess)
 
+		
+		offset = int(self.num_images%self.batchsize)   
+		num_loops = int(self.num_images/self.batchsize)
 
-
-
-for i in range(1000):
-	#batchx, batchy = mnist.train.next_batch(100)
-	reader = tf.TFRecordReader()
-
-	_, serialized_example = reader.read(TRAIN_FILE)
+		
+		for i in range(self.num_epochs):
+			print (" ### in epoch " + str(i) + "###")
+			for k in range(num_loops):
+				batchx,batchy = self.get_next_batch(self.batchsize,sess)
+				print (batchx[0][:,:,0].shape)
+				#cv2.imshow('window',batchx[0][:,:,0])
+				#cv2.waitKey(0)
+				#print (len(batchx),batchx[0],batchy[0])
+				sess.run(step,{self.x:batchx,self.y:batchy})
+				sys.exit(0)
+				
+			batchx,batchy = self.get_next_batch(offset,sess)
+			print (len(batchx),batchx[0].shape,batchy[0])
+			sys.exit(0)
+			sess.run(step,{x:batchx,y:batchy})
 	
-	import sys
-	sys.exit(0)
+
+
+	# def get_accuracy():
+	# 	correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(output, 1))
+	# 	accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+	# 	print(sess.run(accuracy, feed_dict={x: mnist.test.images, y: mnist.test.labels}))
+
+
+
+
+
+instance = Utils() 
+instance.mnist_init()
+instance.run()
+
+
+
+
+
+
+
+
+
+
+
 	
-	features = tf.parse_single_example(
-	  serialized_example,
-	  # Defaults are not specified since both keys are required.
-	  features={
-	      'image_raw': tf.FixedLenFeature([], tf.string),
-	      'label': tf.FixedLenFeature([], tf.int64),
-	  })
-
-	# Convert from a scalar string tensor (whose single string has
-	# length mnist.IMAGE_PIXELS) to a uint8 tensor with shape
-	# [mnist.IMAGE_PIXELS].
-	image = tf.decode_raw(features['image_raw'], tf.uint8)
-	image.set_shape([mnist.IMAGE_PIXELS])
-
-	# OPTIONAL: Could reshape into a 28x28 image and apply distortions
-	# here.  Since we are not applying any distortions in this
-	# example, and the next step expects the image to be flattened
-	# into a vector, we don't bother.
-
-	# Convert from [0, 255] -> [-0.5, 0.5] floats.
-	image = tf.cast(image, tf.float32) * (1. / 255) - 0.5
-
-	# Convert label from a scalar uint8 tensor to an int32 scalar.
-	label = tf.cast(features['label'], tf.int32)
-
-
-
-	sess.run(step,{x:batchx,y:batchy})
 #	print sess.run(loss,{x:batchx,y:batchy})
 
 
-correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(output, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-print(sess.run(accuracy, feed_dict={x: mnist.test.images,
-                                      y: mnist.test.labels}))
-testx, testy = mnist.test.next_batch(1)
-print (sess.run(W))
-#print(sess.run(output,feed_dict={x:testx,y:testy}))
+
+# testx, testy = mnist.test.next_batch(1)
+# print (sess.run(W))
+# #print(sess.run(output,feed_dict={x:testx,y:testy}))

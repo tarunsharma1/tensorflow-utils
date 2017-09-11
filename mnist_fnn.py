@@ -11,6 +11,8 @@ import tensorflow as tf
 import numpy as np
 import cv2
 
+from tensorflow.contrib.learn.python.learn.datasets import mnist
+
 #############################################################################################################################
 
 # Utils class to provide supporting operations. Has functions for
@@ -30,9 +32,9 @@ class Utils:
 
 		self.x = tf.placeholder(tf.float32,[None,28,28,1])
 		self.y = tf.placeholder(tf.float32,[None,10])
-		self.TRAIN_FILE = '/home/tarun/mine/tensorflow_examples/tensorflow-utils/train.tfrecords'
+		self.TRAIN_FILE = '/home/tarun/tensorflow-utils/train.tfrecords'
 		self.batchsize = 5
-		self.num_epochs = 5
+		self.num_epochs = 10
 		self.num_images = 10000
 
 
@@ -51,7 +53,7 @@ class Utils:
 	      })
 		#image = np.fromstring(features['image_raw'], dtype=np.uint8)
 		image = tf.decode_raw(features['image_raw'],tf.float32)
-		label3 = tf.decode_raw(features['label'], tf.float32)
+		label = tf.decode_raw(features['label'], tf.float32)
 
 		height = tf.cast(features['height'], tf.int32)
 		width = tf.cast(features['width'], tf.int32)
@@ -59,7 +61,8 @@ class Utils:
 
 		#image_shape = tf.pack([height, width, depth])
 		image2 = tf.reshape(image, [height, width, depth])
-		return image2,label3
+		label.set_shape(10)
+		return image2,label
 
 
 	#img,label = read_and_decode(filename_queue)
@@ -69,7 +72,7 @@ class Utils:
 		# define model and return loss...this along with mnist_init will be moved to another script
 		output = tf.nn.softmax(tf.matmul(tf.reshape(self.x,[-1,784]),self.W)+self.b)
 		loss = -tf.reduce_sum(self.y*tf.log(output))
-		return loss
+		return loss,output
 
 
 
@@ -78,8 +81,8 @@ class Utils:
 		batchy = []
 		for i in range(batchsize):
 			img,anno = sess.run([self.img,self.label2])
-			print (anno)
-			sys.exit(0)
+			#print (anno)
+			#sys.exit(0)
 			batchx.append(img)
 			batchy.append(anno)
 
@@ -88,7 +91,7 @@ class Utils:
 
 
 	def run(self):
-		loss = self.model()
+		loss,_ = self.model()
 		step = tf.train.GradientDescentOptimizer(0.01).minimize(loss)
 
 		self.filename_queue = tf.train.string_input_producer([self.TRAIN_FILE])
@@ -113,24 +116,23 @@ class Utils:
 			print (" ### in epoch " + str(i) + "###")
 			for k in range(num_loops):
 				batchx,batchy = self.get_next_batch(self.batchsize,sess)
-				print (batchx[0][:,:,0].shape)
+				#print (batchx[0][:,:,0].shape)
 				#cv2.imshow('window',batchx[0][:,:,0])
 				#cv2.waitKey(0)
 				#print (len(batchx),batchx[0],batchy[0])
 				sess.run(step,{self.x:batchx,self.y:batchy})
-				sys.exit(0)
-				
-			batchx,batchy = self.get_next_batch(offset,sess)
-			print (len(batchx),batchx[0].shape,batchy[0])
-			sys.exit(0)
-			sess.run(step,{x:batchx,y:batchy})
-	
+				#sys.exit(0)
+			
+			if (offset>0):	
+				batchx,batchy = self.get_next_batch(offset,sess)
+				sess.run(step,{self.x:batchx,self.y:batchy})
+		return sess
 
-
-	# def get_accuracy():
-	# 	correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(output, 1))
-	# 	accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-	# 	print(sess.run(accuracy, feed_dict={x: mnist.test.images, y: mnist.test.labels}))
+	def get_accuracy(self,sess):
+		loss,output = self.model()
+	 	correct_prediction = tf.equal(tf.argmax(self.y, 1), tf.argmax(output, 1))
+	 	accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+	 	print(sess.run(accuracy, feed_dict={self.x: mnist.test.images, self.y: mnist.test.labels}))
 
 
 
@@ -138,8 +140,8 @@ class Utils:
 
 instance = Utils() 
 instance.mnist_init()
-instance.run()
-
+sess = instance.run()
+instance.get_accuracy(sess)
 
 
 

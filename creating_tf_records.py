@@ -22,6 +22,9 @@ def convert_to(data_set, name):
   """Converts a dataset to tfrecords."""
   images = data_set.images
   labels = data_set.labels
+  # have to convert to float
+  labels = np.array(labels,dtype=np.float32)
+  #print (labels[0],type(labels[0]),labels[0].shape)
   num_examples = data_set.num_examples
 
   # 60000,28,28,1 and 60000,10

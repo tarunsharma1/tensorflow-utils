@@ -40,6 +40,8 @@ def convert_to(data_set, name):
   print('Writing', filename)
   writer = tf.python_io.TFRecordWriter(filename)
   for index in range(num_examples):
+    #print (labels[index].shape)
+    #sys.exit(0)
     image_raw = images[index].tostring()
     labels_raw = labels[index].tostring()
     example = tf.train.Example(features=tf.train.Features(feature={

@@ -26,21 +26,10 @@ from tensorflow.contrib.learn.python.learn.datasets import mnist
 
 
 class Utils:
-	def mnist_init(self):
-		self.b = tf.Variable(tf.zeros([10]))
-		self.W = tf.Variable(tf.zeros([784,10]))
-
-		self.x = tf.placeholder(tf.float32,[None,28,28,1])
-		self.y = tf.placeholder(tf.float32,[None,10])
-		self.TRAIN_FILE = '/home/tarun/mine/tensorflow_examples/tensorflow-utils/train.tfrecords'
-		self.batchsize = 5
-		self.num_epochs = 10
-		self.num_images = 10000
-
 
 	def read_and_decode(self,queue):
 		reader = tf.TFRecordReader()
-		_, serialized_example = reader.read(self.filename_queue)
+		_, serialized_example = reader.read(queue)
 		features = tf.parse_single_example(
 	      serialized_example,
 	      # Defaults are not specified since both keys are required.
@@ -60,103 +49,43 @@ class Utils:
 		depth = tf.cast(features['depth'], tf.int32)
 
 		#image_shape = tf.pack([height, width, depth])
-		image2 = tf.reshape(image, [height, width, depth])
+		image = tf.reshape(image, [height, width, depth])
 		label.set_shape(10)
-		return image2,label
-
-
-	#img,label = read_and_decode(filename_queue)
-
-
-	def model(self):
-		# define model and return loss...this along with mnist_init will be moved to another script
-		output = tf.nn.softmax(tf.matmul(tf.reshape(self.x,[-1,784]),self.W)+self.b)
-		loss = -tf.reduce_sum(self.y*tf.log(output))
-		return loss,output
+		return image,label
 
 
 
-	def get_next_batch(self,batchsize,sess):
+	def get_next_batch(self,batchsize,sess,img,label):
 		batchx = []
 		batchy = []
 		for i in range(batchsize):
-			img,anno = sess.run([self.img,self.label2])
-			#print (anno)
-			#sys.exit(0)
-			batchx.append(img)
+			img2,anno = sess.run([img,label])
+			batchx.append(img2)
 			batchy.append(anno)
 
 		return batchx,batchy
 
 
 
-	def run(self):
-		loss,_ = self.model()
-		step = tf.train.GradientDescentOptimizer(0.01).minimize(loss)
-
-		self.filename_queue = tf.train.string_input_producer([self.TRAIN_FILE])
-		# variables for reading..used in get_next_batch()
-		self.img, self.label2 = self.read_and_decode(self.filename_queue)
 
 
-		sess = tf.Session()
-		init = tf.global_variables_initializer()
-		sess.run(init)
+	def get_accuracy(self,output,y):
+		count = 0.0
+		total = 0.0
+		for i in range(0,len(output)):
+			# in each batch
+			pred = output[i]
+			gt = y[i]
+			total += len(pred)
+			for k in range(0,len(pred)):
+				if (np.argmax(pred[k]) == np.argmax(gt[k])):
+					count+=1
 
-		# for reading the tf record
-		coord = tf.train.Coordinator()
-		threads = tf.train.start_queue_runners(coord=coord,sess=sess)
+		# total correct / (num_batches*images per batch)
+		return count/(1.0*total)
 
-		
-		offset = int(self.num_images%self.batchsize)   
-		num_loops = int(self.num_images/self.batchsize)
-
-		
-		for i in range(self.num_epochs):
-			print (" ### in epoch " + str(i) + "###")
-			for k in range(num_loops):
-				batchx,batchy = self.get_next_batch(self.batchsize,sess)
-				#print (batchx[0][:,:,0].shape)
-				#cv2.imshow('window',batchx[0][:,:,0])
-				#cv2.waitKey(0)
-				#print (len(batchx),batchx[0],batchy[0])
-				sess.run(step,{self.x:batchx,self.y:batchy})
-				#sys.exit(0)
-			
-			if (offset>0):	
-				batchx,batchy = self.get_next_batch(offset,sess)
-				sess.run(step,{self.x:batchx,self.y:batchy})
-		return sess
-
-	def get_accuracy(self,sess):
-		loss,output = self.model()
-	 	correct_prediction = tf.equal(tf.argmax(self.y, 1), tf.argmax(output, 1))
-	 	accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-	 	print(sess.run(accuracy, feed_dict={self.x: mnist.test.images, self.y: mnist.test.labels}))
+			# correct_prediction = tf.equal(tf.argmax(gt, 1), tf.argmax(pred, 1))
+	 	# 	accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+	 	# 	print(sess.run(accuracy, feed_dict={self.x: mnist.test.images, self.y: mnist.test.labels}))
 
 
-
-
-
-instance = Utils() 
-instance.mnist_init()
-sess = instance.run()
-instance.get_accuracy(sess)
-
-
-
-
-
-
-
-
-
-
-	
-#	print sess.run(loss,{x:batchx,y:batchy})
-
-
-
-# testx, testy = mnist.test.next_batch(1)
-# print (sess.run(W))
-# #print(sess.run(output,feed_dict={x:testx,y:testy}))

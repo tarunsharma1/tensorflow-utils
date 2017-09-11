@@ -23,10 +23,11 @@ class FNN:
 			self.x = tf.placeholder(tf.float32,[None,28,28,1])
 			self.y = tf.placeholder(tf.float32,[None,10])
 			self.TRAIN_FILE = '/home/tarun/mine/tensorflow_examples/tensorflow-utils/train.tfrecords'
-			self.batchsize = 100
-			self.num_epochs = 10
+			self.TEST_FILE = '/home/tarun/mine/tensorflow_examples/tensorflow-utils/train.tfrecords'
+			self.batchsize = 50
+			self.num_epochs = 1
 			self.num_images = 10000
-			self.num_test_images = 2000
+			self.num_test_images = 9000
 			self.Utils = Utils()
 
 
@@ -72,7 +73,7 @@ class FNN:
 
 
 	def test(self,sess):
-		filename_queue = tf.train.string_input_producer([self.TRAIN_FILE])
+		filename_queue = tf.train.string_input_producer([self.TEST_FILE])
 		coord = tf.train.Coordinator()
 		threads = tf.train.start_queue_runners(coord=coord,sess=sess)
 		# variables for reading..used in get_next_batch()

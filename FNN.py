@@ -26,8 +26,8 @@ class FNN:
 			self.TEST_FILE = '/home/tarun/mine/tensorflow_examples/tensorflow-utils/train.tfrecords'
 			self.batchsize = 50
 			self.num_epochs = 1
-			self.num_images = 10000
-			self.num_test_images = 9000
+			self.num_images = 60000
+			self.num_test_images = 10000
 			self.Utils = Utils()
 
 

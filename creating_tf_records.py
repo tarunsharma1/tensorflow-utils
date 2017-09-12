@@ -69,6 +69,6 @@ mnist = mnist.read_data_sets("data", one_hot=True, reshape=False, validation_siz
 #                                    validation_size=FLAGS.validation_size)
 
 # Convert to Examples and write the result to TFRecords.
-convert_to(mnist.train, 'train')
-#convert_to(data_sets.validation, 'validation')
+#convert_to(mnist.train, 'train')
+convert_to(mnist.test, 'test')
 #convert_to(data_sets.test, 'test')

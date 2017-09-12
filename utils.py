@@ -18,8 +18,7 @@ from tensorflow.contrib.learn.python.learn.datasets import mnist
 # Utils class to provide supporting operations. Has functions for
 # 1. Reading data from tf records and return batches 
 # 2. TODO : Add conv, relu, pool functionalities
-# 3. TODO : Move all mnist varibles, equations, and even run function to other script
-
+# 3. Returns accuracy
 
 ###########################################################################################################################
 
@@ -40,7 +39,6 @@ class Utils:
 	          'width': tf.FixedLenFeature([], tf.int64),
 	          'depth': tf.FixedLenFeature([], tf.int64)
 	      })
-		#image = np.fromstring(features['image_raw'], dtype=np.uint8)
 		image = tf.decode_raw(features['image_raw'],tf.float32)
 		label = tf.decode_raw(features['label'], tf.float32)
 
@@ -48,7 +46,6 @@ class Utils:
 		width = tf.cast(features['width'], tf.int32)
 		depth = tf.cast(features['depth'], tf.int32)
 
-		#image_shape = tf.pack([height, width, depth])
 		image = tf.reshape(image, [height, width, depth])
 		label.set_shape(10)
 		return image,label
@@ -56,6 +53,7 @@ class Utils:
 
 
 	def get_next_batch(self,batchsize,sess,img,label):
+		# at some point replace this by tf.train.shuffle_batch([image, label], batch_size=10, capacity=30, num_threads=1, min_after_dequeue=10)
 		batchx = []
 		batchy = []
 		for i in range(batchsize):
@@ -80,7 +78,7 @@ class Utils:
 			for k in range(0,len(pred)):
 				if (np.argmax(pred[k]) == np.argmax(gt[k])):
 					count+=1
-
+				
 		# total correct / (num_batches*images per batch)
 		return count/(1.0*total)
 

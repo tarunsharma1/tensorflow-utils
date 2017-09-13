@@ -20,11 +20,11 @@ class FNN:
 			
 			self.x = tf.placeholder(tf.float32,[None,28,28,1])
 			self.y = tf.placeholder(tf.float32,[None,10])
-			#self.TRAIN_FILE = '/home/tarun/mine/tensorflow_examples/tensorflow-utils/train.tfrecords'
-			self.TRAIN_FILE = '/home/tarun/tensorflow-utils/train.tfrecords'
+			self.TRAIN_FILE = '/home/tarun/mine/tensorflow_examples/tensorflow-utils/train.tfrecords'
+			#self.TRAIN_FILE = '/home/tarun/tensorflow-utils/train.tfrecords'
 			self.TEST_FILE = '/home/tarun/mine/tensorflow_examples/tensorflow-utils/train.tfrecords'
-			self.batchsize = 50
-			self.num_epochs = 1
+			self.batchsize = 128
+			self.num_epochs = 10
 			self.num_images = 60000
 			self.num_test_images = 10000
 			self.Utils = Utils()
@@ -115,7 +115,7 @@ class FNN:
 					sess.run(step,{self.x:batchx,self.y:batchy})
 				
 				if (offset>0):	
-					batchx,batchy = self.get_next_batch(offset,sess,self.img,self.label)
+					batchx,batchy = self.Utils.get_next_batch(offset,sess,self.img,self.label)
 					sess.run(step,{self.x:batchx,self.y:batchy})
 			return sess
 			coord.request_stop()
@@ -142,7 +142,7 @@ class FNN:
 			correct_labels.append(batchy)
 		
 		if (offset>0):	
-			batchx,batchy = self.get_next_batch(offset,sess,self.img,self.label)
+			batchx,batchy = self.Utils.get_next_batch(offset,sess,self.img,self.label)
 			l,o = sess.run([loss,output],{self.x:batchx,self.y:batchy})
 			output_vecs.append(o)
 			correct_labels.append(batchy)

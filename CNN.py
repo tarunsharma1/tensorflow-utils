@@ -14,6 +14,8 @@ import cv2
 from utils import Utils
 
 
+##### TO DO : CHANGE WEIGHT INITIALIZATION TO XAVIER ###########
+
 class FNN:
 
 	def mnist_init(self):
@@ -22,15 +24,17 @@ class FNN:
 			self.y = tf.placeholder(tf.float32,[None,10])
 			self.TRAIN_FILE = '/home/tarun/mine/tensorflow_examples/tensorflow-utils/train.tfrecords'
 			#self.TRAIN_FILE = '/home/tarun/tensorflow-utils/train.tfrecords'
-			self.TEST_FILE = '/home/tarun/mine/tensorflow_examples/tensorflow-utils/train.tfrecords'
-			self.batchsize = 128
-			self.num_epochs = 10
+			self.TEST_FILE = '/home/tarun/mine/tensorflow_examples/tensorflow-utils/test.tfrecords'
+			self.batchsize = 1
+			self.num_epochs = 1
 			self.num_images = 60000
 			self.num_test_images = 10000
 			self.Utils = Utils()
 			self.weights = {
 			    # 5x5 conv, 1 input, 32 outputs
+			    #'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
 			    'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
+			    
 			    # 5x5 conv, 32 inputs, 64 outputs
 			    'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
 			    # fully connected, 7*7*64 inputs, 1024 outputs
@@ -40,10 +44,10 @@ class FNN:
 			}
 
 			self.biases = {
-			    'bc1': tf.Variable(tf.random_normal([32])),
-			    'bc2': tf.Variable(tf.random_normal([64])),
-			    'bd1': tf.Variable(tf.random_normal([1024])),
-			    'out': tf.Variable(tf.random_normal([10]))
+			    'bc1': tf.Variable(tf.ones([32])),
+			    'bc2': tf.Variable(tf.ones([64])),
+			    'bd1': tf.Variable(tf.ones([1024])),
+			    'out': tf.Variable(tf.ones([10]))
 			}
 
 
@@ -71,25 +75,28 @@ class FNN:
 			conv2 = self.conv2d(conv1, self.weights['wc2'], self.biases['bc2'])
 		    # Max Pooling (down-sampling)
 			conv2 = self.maxpool2d(conv2, k=2)
+		
 
 		    # Fully connected layer
 		    # Reshape conv2 output to fit fully connected layer input
+
 			fc1 = tf.reshape(conv2, [-1, self.weights['wd1'].get_shape().as_list()[0]])
 			fc1 = tf.add(tf.matmul(fc1, self.weights['wd1']), self.biases['bd1'])
 			fc1 = tf.nn.relu(fc1)
 		    # Apply Dropout
-		    #fc1 = tf.nn.dropout(fc1, dropout)
+
+			#fc1 = tf.nn.dropout(fc1, 0.5)
 
 		    # Output, class prediction
-			output = tf.add(tf.matmul(fc1, self.weights['out']), self.biases['out'])
-			# output = tf.nn.softmax(tf.matmul(tf.reshape(self.x,[-1,784]),self.W)+self.b)
-			loss = -tf.reduce_sum(self.y*tf.log(output))
-			return loss,output
+			logits = tf.add(tf.matmul(fc1, self.weights['out']), self.biases['out'])
+			loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits,labels=self.y))
+			
+			return loss,logits, tf.nn.softmax(logits)
 
 
 	def run(self):
-			loss,_ = self.model()
-			step = tf.train.GradientDescentOptimizer(0.01).minimize(loss)
+			loss,logits,output = self.model()
+			step = tf.train.GradientDescentOptimizer(0.005).minimize(loss)
 
 			filename_queue = tf.train.string_input_producer([self.TRAIN_FILE])
 			# variables for reading..used in get_next_batch()
@@ -98,7 +105,6 @@ class FNN:
 			sess = tf.Session()
 			init = tf.global_variables_initializer()
 			sess.run(init)
-
 			# for reading the tf record
 			coord = tf.train.Coordinator()
 			threads = tf.train.start_queue_runners(coord=coord,sess=sess)
@@ -106,17 +112,21 @@ class FNN:
 			
 			offset = int(self.num_images%self.batchsize)   
 			num_loops = int(self.num_images/self.batchsize)
-
+			#print (sess.run(self.weights['out']))
 			
 			for i in range(self.num_epochs):
 				print (" ### in epoch " + str(i) + "###")
 				for k in range(num_loops):
 					batchx,batchy = self.Utils.get_next_batch(self.batchsize,sess,self.img,self.label)
+					#batchx = np.array(batchx)
+					#batchy = np.array(batchy)
 					sess.run(step,{self.x:batchx,self.y:batchy})
-				
+					#print (sess.run([loss,output,logits],{self.x:batchx,self.y:batchy}))
 				if (offset>0):	
 					batchx,batchy = self.Utils.get_next_batch(offset,sess,self.img,self.label)
 					sess.run(step,{self.x:batchx,self.y:batchy})
+				# print loss for the last value of each epoch	
+				print (sess.run(loss,{self.x:batchx,self.y:batchy}))
 			return sess
 			coord.request_stop()
 
@@ -127,7 +137,8 @@ class FNN:
 		threads = tf.train.start_queue_runners(coord=coord,sess=sess)
 		# variables for reading..used in get_next_batch()
 		self.img, self.label = self.Utils.read_and_decode(filename_queue)
-		loss,output = self.model()
+		loss,logits,output = self.model()
+		
 		offset = int(self.num_test_images%self.batchsize)   
 		num_loops = int(self.num_test_images/self.batchsize)
 		
@@ -137,7 +148,7 @@ class FNN:
 		# read test images
 		for k in range(num_loops):
 			batchx,batchy = self.Utils.get_next_batch(self.batchsize,sess,self.img,self.label)
-			l,o = sess.run([loss,output],{self.x:batchx,self.y:batchy})
+			o = sess.run(output,{self.x:batchx,self.y:batchy})
 			output_vecs.append(o)
 			correct_labels.append(batchy)
 		
@@ -147,7 +158,6 @@ class FNN:
 			output_vecs.append(o)
 			correct_labels.append(batchy)
 		
-		#print (len(output_vecs),len(correct_labels))
 		accuracy = self.Utils.get_accuracy(output_vecs,correct_labels)		
 		print (accuracy)
 
